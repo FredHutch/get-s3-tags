@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -60,7 +61,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	maxGoroutines := 10
+	maxGoroutines := 30 // started with 10 (it works)
 	guard := make(chan struct{}, maxGoroutines)
 
 	fmt.Fprintln(os.Stderr, "getting bucket listing...")
@@ -151,8 +152,8 @@ func main() {
 
 	// first non-parallel approach (hopefully concurrent though)
 
-	var keymap map[string][]s3.Tag
-	keymap = make(map[string][]s3.Tag)
+	// var keymap map[string][]s3.Tag
+	// keymap = make(map[string][]s3.Tag)
 
 	var keynames map[string]int
 	keynames = make(map[string]int)
@@ -172,7 +173,7 @@ func main() {
 
 		keysProcessed++
 
-		if keysProcessed%100 == 0 {
+		if keysProcessed%1000 == 0 {
 			fmt.Fprintln(os.Stderr, "got ", keysProcessed, "of", keyCount)
 		}
 
@@ -260,19 +261,36 @@ L:
 
 	w := csv.NewWriter(os.Stdout)
 
-	if err := w.Write(fullTagColumns); err != nil {
+	if err2 := w.Write(fullTagColumns); err2 != nil {
+		panic(err2)
+	}
+
+	jsonFile, err = os.Open(filepath.Join(tempDir, "records.json"))
+	defer jsonFile.Close()
+	dec := json.NewDecoder(jsonFile)
+	_, err = dec.Token() // opening [
+	if err != nil {
 		panic(err)
 	}
 
-	for key := range keymap {
+	for dec.More() {
+		// for key := range keymap {
+		var m map[string]string
+		err = dec.Decode(&m)
+		if err != nil {
+			panic(err)
+		}
+		// fmt.Fprintln(os.Stderr, m)
 		var record []string
-		record = append(record, key)
-		tags := keymap[key]
+		record = append(record, m["key"])
+		// tags := keymap[m["key"]]
+		// fmt.Fprintln(os.Stderr, tagColumns)
 		for _, column := range tagColumns {
 			found := false
-			for _, tag := range tags {
-				if *tag.Key == column {
-					record = append(record, *tag.Value)
+			for tag, value := range m {
+				// fmt.Fprintln(os.Stderr, tag)
+				if tag == column {
+					record = append(record, value)
 					found = true
 					break
 				}
@@ -284,6 +302,12 @@ L:
 		if err := w.Write(record); err != nil {
 			panic(err)
 		}
+	}
+
+	// read closing bracket
+	_, err3 := dec.Token()
+	if err3 != nil {
+		panic(err3)
 	}
 
 }
