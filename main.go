@@ -96,8 +96,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Fprintln(os.Stderr, "tempDir is", tempDir) // FIXME remove
-	// defer os.RemoveAll(tempDir) // FIXME uncomment
+	defer os.RemoveAll(tempDir)
 
 	keyfile, err := os.Create(filepath.Join(tempDir, "keyfile.txt"))
 	if err != nil {
