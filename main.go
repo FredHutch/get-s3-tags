@@ -59,6 +59,8 @@ func main() {
 	if len(os.Args) == 1 || len(os.Args) > 3 {
 		fmt.Println("Supply a bucket name and optional prefix.")
 		fmt.Println("Redirect output to a file.")
+		fmt.Println("More documentation available at:")
+		fmt.Println("https://github.com/FredHutch/get-s3-tags")
 		os.Exit(1)
 	}
 
